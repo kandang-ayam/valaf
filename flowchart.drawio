@@ -1,0 +1,188 @@
+<mxfile host="Electron" agent="valaf">
+  <diagram name="valaf-flow" id="valaf-flow-1">
+    <mxGraphModel dx="1230" dy="731" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="2000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#3c5514;" value="valaf — runtime flow  (one alert, end to end)" vertex="1">
+          <mxGeometry height="32" width="800" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="start" parent="1" style="rounded=1;shape=terminator;whiteSpace=wrap;html=1;fillColor=#e8f0d8;strokeColor=#55801a;fontSize=13;fontStyle=1;" value="Alert received (webhook)" vertex="1">
+          <mxGeometry height="50" width="240" x="280" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p_norm" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e8f0d8;strokeColor=#55801a;fontSize=12;" value="Normalize + authenticate&#xa;(per-source shared token / HMAC)" vertex="1">
+          <mxGeometry height="56" width="300" x="250" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="d_sev" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" value="severity&#xa;≥ high?" vertex="1">
+          <mxGeometry height="100" width="180" x="310" y="256" as="geometry" />
+        </mxCell>
+        <mxCell id="t_drop" parent="1" style="rounded=1;shape=terminator;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="Drop — no notebook&#xa;(record suppression counter)" vertex="1">
+          <mxGeometry height="48" width="230" x="650" y="282" as="geometry" />
+        </mxCell>
+        <mxCell id="d_corr" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" value="existing incident&#xa;in window?" vertex="1">
+          <mxGeometry height="100" width="180" x="310" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="p_attach" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" value="Attach to existing incident" vertex="1">
+          <mxGeometry height="48" width="230" x="650" y="426" as="geometry" />
+        </mxCell>
+        <mxCell id="p_new" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" value="Create new incident + entity bag&#xa;(service / host / pod / env)" vertex="1">
+          <mxGeometry height="52" width="300" x="250" y="548" as="geometry" />
+        </mxCell>
+        <mxCell id="p_evid" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e8f0d8;strokeColor=#55801a;fontSize=12;" value="Collect evidence — read-only, best-effort&#xa;metrics · logs · dashboards · orchestrator" vertex="1">
+          <mxGeometry height="56" width="300" x="250" y="648" as="geometry" />
+        </mxCell>
+        <mxCell id="n_gap" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=middle;dashed=1;fillColor=#fbfbf3;strokeColor=#c9c9a8;spacingLeft=8;fontSize=11;fontColor=#555555;" value="failed capture → evidence gap&#xa;(investigation never gets stuck)" vertex="1">
+          <mxGeometry height="52" width="280" x="799" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="p_learn" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="Retrieve similar RESOLVED incidents (learning)" vertex="1">
+          <mxGeometry height="52" width="300" x="250" y="748" as="geometry" />
+        </mxCell>
+        <mxCell id="d_ai" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" value="AI provider&#xa;reachable?" vertex="1">
+          <mxGeometry height="100" width="180" x="310" y="844" as="geometry" />
+        </mxCell>
+        <mxCell id="p_evonly" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" value="Publish notebook —&#xa;evidence only (analysis gap)" vertex="1">
+          <mxGeometry height="52" width="250" x="630" y="868" as="geometry" />
+        </mxCell>
+        <mxCell id="p_ai" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" value="AI analysis + triage&#xa;summary · timeline · ranked hypotheses (cited)&#xa;· evidence gaps · TRIAGE VERDICT" vertex="1">
+          <mxGeometry height="64" width="300" x="250" y="992" as="geometry" />
+        </mxCell>
+        <mxCell id="p_strip" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" value="Strip claims citing missing evidence" vertex="1">
+          <mxGeometry height="48" width="300" x="250" y="1096" as="geometry" />
+        </mxCell>
+        <mxCell id="db" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" value="Write notebook → PostgreSQL&#xa;(ALWAYS written)" vertex="1">
+          <mxGeometry height="84" width="220" x="290" y="1184" as="geometry" />
+        </mxCell>
+        <mxCell id="d_act" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" value="triage verdict&#xa;actionable?" vertex="1">
+          <mxGeometry height="100" width="180" x="310" y="1308" as="geometry" />
+        </mxCell>
+        <mxCell id="p_notify" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" value="Notify: page / Slack&#xa;(carries the analysis)" vertex="1">
+          <mxGeometry height="52" width="230" x="630" y="1332" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quiet" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" value="Quiet / digest only" vertex="1">
+          <mxGeometry height="52" width="200" x="60" y="1332" as="geometry" />
+        </mxCell>
+        <mxCell id="p_review" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" value="Engineer review&#xa;confirm / reject hypotheses · flag evidence&#xa;· write resolution" vertex="1">
+          <mxGeometry height="64" width="300" x="250" y="1480" as="geometry" />
+        </mxCell>
+        <mxCell id="p_export" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" value="Export on demand&#xa;DOCX · PDF · Markdown · JSON&#xa;(generated, NOT stored)" vertex="1">
+          <mxGeometry height="56" width="230" x="630" y="1486" as="geometry" />
+        </mxCell>
+        <mxCell id="d_root" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" value="root cause&#xa;saved?" vertex="1">
+          <mxGeometry height="100" width="180" x="310" y="1588" as="geometry" />
+        </mxCell>
+        <mxCell id="p_resolved" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" value="Mark RESOLVED → joins knowledge base&#xa;(learning corpus for future incidents)" vertex="1">
+          <mxGeometry height="56" width="300" x="250" y="1728" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="start" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="p_norm">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="p_norm" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="d_sev">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sev_no" edge="1" parent="1" source="d_sev" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#b85450;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=11;fontColor=#b85450;" target="t_drop" value="no">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_sev_yes" edge="1" parent="1" source="d_sev" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=11;" target="d_corr" value="yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_corr_yes" edge="1" parent="1" source="d_corr" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=11;entryDx=0;entryDy=0;" target="p_attach" value="yes">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_corr_no" edge="1" parent="1" source="d_corr" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=11;" target="p_new" value="no">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_attach_evid" edge="1" parent="1" source="p_attach" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="p_evid">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="763" y="662" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_new_evid" edge="1" parent="1" source="p_new" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="p_evid">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_evid_gap" edge="1" parent="1" source="p_evid" style="endArrow=none;html=1;dashed=1;strokeWidth=1.5;strokeColor=#c9c9a8;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="n_gap">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_evid_learn" edge="1" parent="1" source="p_evid" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="p_learn">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_learn_ai" edge="1" parent="1" source="p_learn" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="d_ai">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ai_no" edge="1" parent="1" source="d_ai" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#d79b00;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=11;fontColor=#996515;entryDx=0;entryDy=0;" target="p_evonly" value="no">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ai_yes" edge="1" parent="1" source="d_ai" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=11;" target="p_ai" value="yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ai_strip" edge="1" parent="1" source="p_ai" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="p_strip">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_strip_db" edge="1" parent="1" source="p_strip" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_evonly_db" edge="1" parent="1" source="p_evonly" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#d79b00;exitX=0.5;exitY=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" target="db">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="749" y="1226" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_db_act" edge="1" parent="1" source="db" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="d_act">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_act_yes" edge="1" parent="1" source="d_act" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=11;" target="p_notify" value="yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_act_no" edge="1" parent="1" source="d_act" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0;exitY=0.5;entryX=1;entryY=0.5;fontSize=11;" target="p_quiet" value="no">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_notify_review" edge="1" parent="1" source="p_notify" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.85;entryY=0;" target="p_review">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="745" y="1460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_quiet_review" edge="1" parent="1" source="p_quiet" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.15;entryY=0;" target="p_review">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="1460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_review_export" edge="1" parent="1" source="p_review" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="p_export">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_review_root" edge="1" parent="1" source="p_review" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="d_root">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_root_no" edge="1" parent="1" source="d_root" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0;exitY=0.5;entryX=0;entryY=0.5;fontSize=11;" target="p_review" value="no — stays open">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="1638" />
+              <mxPoint x="160" y="1512" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_root_yes" edge="1" parent="1" source="d_root" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#444444;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=11;" target="p_resolved" value="yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fb" edge="1" parent="1" source="p_resolved" style="endArrow=block;html=1;dashed=1;strokeWidth=2;strokeColor=#9673a6;fontSize=11;fontColor=#6a4a86;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" target="p_learn" value="verified outcomes feed future analyses">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="930" y="1756" />
+              <mxPoint x="930" y="774" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#555555;" value="◇ decision   ▭ action   ⬭ start / end   ⬚ note   ⬢ datastore&#xa;Green = intake / evidence   Blue = correlate / store   Orange = AI   Purple = output   Yellow = learning   Red = stop / suppress" vertex="1">
+          <mxGeometry height="50" width="900" x="40" y="1820" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

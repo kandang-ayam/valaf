@@ -1,0 +1,132 @@
+<mxfile host="Electron" agent="valaf">
+  <diagram name="valaf-erd" id="valaf-erd-1">
+    <mxGraphModel dx="1768" dy="1051" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1780" pageHeight="980" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#3c5514;" value="valaf — database ERD  (PostgreSQL)" vertex="1">
+          <mxGeometry height="30" width="900" x="40" y="16" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#666666;" value="The notebook = the incidents aggregate. Evidence &amp; audit_log are immutable. Binary snapshots live on disk (attachments row references the file). Exports are generated on demand, never persisted → no table.   Crow&#39;s-foot: ●&lt; = many, ┃ = one." vertex="1">
+          <mxGeometry height="20" width="1400" x="40" y="46" as="geometry" />
+        </mxCell>
+        <mxCell id="sessions" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fbeeee;strokeColor=#b85450;" value="&lt;b&gt;sessions&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;FK user_id → users&lt;br&gt;token_hash text&lt;br&gt;csrf_secret text&lt;br&gt;created_at · expires_at" vertex="1">
+          <mxGeometry height="120" width="250" x="40" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="users" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fbeeee;strokeColor=#b85450;" value="&lt;b&gt;users&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;username text  UQ&lt;br&gt;email text&lt;br&gt;password_hash text · null&lt;br&gt;auth_source enum(local,proxy,oidc)&lt;br&gt;external_id text · null  (oidc sub)&lt;br&gt;role enum(viewer,engineer,admin)&lt;br&gt;is_active bool&lt;br&gt;last_login_at · created_at" vertex="1">
+          <mxGeometry height="160" width="250" x="40" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="audit_log" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fbeeee;strokeColor=#b85450;" value="&lt;b&gt;audit_log&lt;/b&gt;  (append-only)&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; bigserial  PK&lt;br&gt;FK actor_id → users · null&lt;br&gt;action text&lt;br&gt;entity_type · entity_id  (polymorphic)&lt;br&gt;details jsonb&lt;br&gt;at timestamptz" vertex="1">
+          <mxGeometry height="140" width="250" x="40" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="alerts" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#eef4e2;strokeColor=#55801a;" value="&lt;b&gt;alerts&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;FK incident_id → incidents&lt;br&gt;source enum(alertmanager,grafana,&lt;br&gt;  datadog,newrelic,generic)&lt;br&gt;fingerprint text&lt;br&gt;severity text&lt;br&gt;labels jsonb · annotations jsonb&lt;br&gt;raw_payload jsonb&lt;br&gt;starts_at · ends_at · received_at" vertex="1">
+          <mxGeometry height="190" width="300" x="330" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="evidence_items" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#eef4e2;strokeColor=#55801a;" value="&lt;b&gt;evidence_items&lt;/b&gt;  (immutable)&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;FK incident_id → incidents&lt;br&gt;collector enum(prometheus,loki,&lt;br&gt;  elasticsearch,grafana,kubernetes)&lt;br&gt;kind enum(metric,log,dashboard,orch)&lt;br&gt;request jsonb  (reproducible query)&lt;br&gt;result jsonb · null&lt;br&gt;status enum(ok,gap,failed)&lt;br&gt;error text · null&lt;br&gt;is_valid bool  (flag only, never edit)&lt;br&gt;invalid_comment text · null&lt;br&gt;FK flagged_by → users · null&lt;br&gt;flagged_at · captured_at" vertex="1">
+          <mxGeometry height="270" width="300" x="330" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="attachments" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#eef4e2;strokeColor=#55801a;" value="&lt;b&gt;attachments&lt;/b&gt;  (blob store, not DB)&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;FK evidence_item_id → evidence_items&lt;br&gt;storage_backend enum(local,s3)&lt;br&gt;storage_key text  (path / object key)&lt;br&gt;mime_type · size_bytes · checksum&lt;br&gt;created_at" vertex="1">
+          <mxGeometry height="130" width="300" x="330" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="incidents" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#dce9f7;strokeColor=#2f4a6b;strokeWidth=2;" value="&lt;b&gt;incidents&lt;/b&gt;  ◆ the notebook&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;title text&lt;br&gt;status enum(open,analyzing,published,&lt;br&gt;  resolved,false_positive,deleted)&lt;br&gt;severity enum(high,critical)&lt;br&gt;grouping_key text&lt;br&gt;entity_bag jsonb  (service/host/pod/env)&lt;br&gt;triage_verdict enum · null&lt;br&gt;FK assigned_to → users · null&lt;br&gt;notified bool&lt;br&gt;opened_at · published_at&lt;br&gt;resolved_at · deleted_at (soft-delete)" vertex="1">
+          <mxGeometry height="230" width="320" x="700" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="resolutions" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#efe7f3;strokeColor=#9673a6;" value="&lt;b&gt;resolutions&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;FK incident_id → incidents  UQ&lt;br&gt;root_cause text&lt;br&gt;actions_taken text&lt;br&gt;ultimate_solution text&lt;br&gt;notes text · null&lt;br&gt;FK resolved_by → users&lt;br&gt;resolved_at" vertex="1">
+          <mxGeometry height="170" width="320" x="700" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="notifications" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#efe7f3;strokeColor=#9673a6;" value="&lt;b&gt;notifications&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;FK incident_id → incidents&lt;br&gt;channel enum(slack, …)&lt;br&gt;target text&lt;br&gt;status enum(sent,quiet,digest,failed)&lt;br&gt;reason enum(actionable,noise)&lt;br&gt;sent_at" vertex="1">
+          <mxGeometry height="150" width="320" x="700" y="790" as="geometry" />
+        </mxCell>
+        <mxCell id="analyses" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fff3e6;strokeColor=#d79b00;" value="&lt;b&gt;analyses&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;FK incident_id → incidents&lt;br&gt;provider enum(anthropic,openai_compat)&lt;br&gt;model text&lt;br&gt;status enum(ok,failed,skipped)&lt;br&gt;summary text · timeline jsonb&lt;br&gt;gaps jsonb  (AI-declared missing)&lt;br&gt;triage_verdict enum&lt;br&gt;is_current bool&lt;br&gt;error text · null&lt;br&gt;created_at" vertex="1">
+          <mxGeometry height="200" width="310" x="1090" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="observations" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fff3e6;strokeColor=#d79b00;" value="&lt;b&gt;observations&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;FK analysis_id → analyses&lt;br&gt;body text&lt;br&gt;ordinal int" vertex="1">
+          <mxGeometry height="110" width="310" x="1090" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="hypotheses" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fff3e6;strokeColor=#d79b00;" value="&lt;b&gt;hypotheses&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;FK analysis_id → analyses&lt;br&gt;rank int · title text&lt;br&gt;rationale text&lt;br&gt;suggested_checks jsonb  (read-only)&lt;br&gt;verdict enum(none,confirmed,rejected)&lt;br&gt;verdict_note text · null&lt;br&gt;FK verdict_by → users · null&lt;br&gt;verdict_at · null" vertex="1">
+          <mxGeometry height="190" width="310" x="1090" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="observation_citations" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fff9f0;strokeColor=#d79b00;dashed=1;" value="&lt;b&gt;observation_citations&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;FK observation_id&lt;/u&gt; → observations  PK&lt;br&gt;&lt;u&gt;FK evidence_item_id&lt;/u&gt; → evidence_items  PK" vertex="1">
+          <mxGeometry height="90" width="300" x="1450" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="hypothesis_evidence" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fff9f0;strokeColor=#d79b00;dashed=1;" value="&lt;b&gt;hypothesis_evidence&lt;/b&gt;&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;FK hypothesis_id&lt;/u&gt; → hypotheses  PK&lt;br&gt;&lt;u&gt;FK evidence_item_id&lt;/u&gt; → evidence_items  PK&lt;br&gt;&lt;u&gt;relation&lt;/u&gt; enum(supporting,contradicting) PK" vertex="1">
+          <mxGeometry height="105" width="300" x="1450" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="similar" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fff9f0;strokeColor=#d79b00;dashed=1;" value="&lt;b&gt;analysis_similar_incidents&lt;/b&gt;  (learning)&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;FK analysis_id&lt;/u&gt; → analyses  PK&lt;br&gt;&lt;u&gt;FK source_incident_id&lt;/u&gt; → incidents  PK&lt;br&gt;overlap jsonb · score" vertex="1">
+          <mxGeometry height="105" width="300" x="1450" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="r1" edge="1" parent="1" source="users" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#b85450;" target="sessions">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" edge="1" parent="1" source="users" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#b85450;" target="audit_log">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" edge="1" parent="1" source="incidents" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#55801a;" target="alerts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r4" edge="1" parent="1" source="incidents" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#55801a;" target="evidence_items">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r5" edge="1" parent="1" source="evidence_items" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#55801a;" target="attachments">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r6" edge="1" parent="1" source="incidents" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;" target="analyses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r7" edge="1" parent="1" source="analyses" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;" target="observations">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r8" edge="1" parent="1" source="analyses" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;" target="hypotheses">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r9" edge="1" parent="1" source="observations" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;" target="observation_citations">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r10" edge="1" parent="1" source="evidence_items" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#999999;dashed=1;" target="observation_citations">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r11" edge="1" parent="1" source="hypotheses" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;" target="hypothesis_evidence">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r12" edge="1" parent="1" source="evidence_items" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#999999;dashed=1;" target="hypothesis_evidence">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r13" edge="1" parent="1" source="incidents" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERone;startArrow=ERone;strokeColor=#9673a6;fontSize=10;" target="resolutions" value="1:1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r14" edge="1" parent="1" source="incidents" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#9673a6;" target="notifications">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r15" edge="1" parent="1" source="analyses" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d79b00;" target="similar">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r16" edge="1" parent="1" source="incidents" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#999999;dashed=1;fontSize=10;fontColor=#777777;" target="similar" value="source">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r17" edge="1" parent="1" source="users" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d0a0a0;dashed=1;fontSize=9;fontColor=#b85450;" target="hypotheses" value="verdict_by">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r18" edge="1" parent="1" source="users" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d0a0a0;dashed=1;fontSize=9;fontColor=#b85450;" target="resolutions" value="resolved_by">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r19" edge="1" parent="1" source="users" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d0a0a0;dashed=1;fontSize=9;fontColor=#b85450;" target="evidence_items" value="flagged_by">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#555555;" value="Solid line = ownership FK (parent ┃—●&lt; child).   Gray dashed = cross-cluster link (evidence cited by observations/hypotheses; similar-incident retrieval).   Red dashed = actor FK → users.&#xa;UQ = unique · PK = primary key · FK = foreign key.   Config (valaf.yaml) is file-based, not in the DB.   No exports table — DOCX/PDF/MD/JSON rendered on request from these rows." vertex="1">
+          <mxGeometry height="80" width="620" x="26" y="983" as="geometry" />
+        </mxCell>
+
+        <mxCell id="intake_sources" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#fbeeee;strokeColor=#b85450;" value="&lt;b&gt;intake_sources&lt;/b&gt;  (webhook auth)&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;id&lt;/u&gt; uuid  PK&lt;br&gt;name text  UQ&lt;br&gt;source_type enum(alertmanager,…)&lt;br&gt;auth_method enum(shared_token,hmac)&lt;br&gt;token_hash text · null&lt;br&gt;hmac_secret text · null&lt;br&gt;is_active bool&lt;br&gt;created_at · last_seen_at" vertex="1">
+          <mxGeometry height="170" width="280" x="26" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="settings" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;spacingRight=6;fontSize=11;fillColor=#f0f0f0;strokeColor=#888888;" value="&lt;b&gt;settings&lt;/b&gt;  (admin-editable runtime)&lt;br&gt;────────────&lt;br&gt;&lt;u&gt;key&lt;/u&gt; text  PK&lt;br&gt;value jsonb&lt;br&gt;FK updated_by → users · null&lt;br&gt;updated_at&lt;br&gt;&lt;br&gt;severity threshold · correlation window ·&lt;br&gt;flapping limits · notify routing" vertex="1">
+          <mxGeometry height="160" width="280" x="330" y="800" as="geometry" />
+        </mxCell>
+
+        <mxCell id="r20" edge="1" parent="1" source="users" style="edgeStyle=entityRelationEdgeStyle;html=1;rounded=0;endArrow=ERmany;startArrow=ERone;strokeColor=#d0a0a0;dashed=1;fontSize=9;fontColor=#b85450;" target="incidents" value="assigned_to">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

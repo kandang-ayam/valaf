@@ -1,0 +1,24 @@
+# Build output
+/valaf
+/valaf.exe
+/dist/
+
+# Local config & data
+valaf.yaml
+/data/
+
+# Env
+.env
+.env.*
+
+# Test & coverage artifacts
+*.test
+*.out
+coverage.html
+
+# Editor / OS noise
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store

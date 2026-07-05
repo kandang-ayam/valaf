@@ -1,0 +1,181 @@
+{{define "incident_detail"}}{{template "head" .}}
+  <a class="back" href="/">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    All incidents
+  </a>
+
+  <div class="detail-head">
+    <h1>{{.Notebook.Incident.Title}}</h1>
+    <span class="badge sev-{{.Notebook.Incident.Severity}}">{{.Notebook.Incident.Severity}}</span>
+    <span class="badge st-{{.Notebook.Incident.Status}}">{{.Notebook.Incident.Status}}</span>
+    {{if .Notebook.Incident.TriageVerdict}}<span class="badge verdict-{{.Notebook.Incident.TriageVerdict}} plain">{{.Notebook.Incident.TriageVerdict}}</span>{{end}}
+  </div>
+  <div class="detail-sub">
+    <span>Opened {{fulltime .Notebook.Incident.OpenedAt}}</span>
+    {{if .Notebook.Incident.PublishedAt}}<span>· Published {{fulltime .Notebook.Incident.PublishedAt}}</span>{{end}}
+    {{if .Notebook.Incident.EntityBag}}
+      <span class="entity-tags">
+        {{range $k, $v := .Notebook.Incident.EntityBag}}<span class="entity-tag"><b>{{$k}}</b>{{$v}}</span>{{end}}
+      </span>
+    {{end}}
+  </div>
+
+  <div class="export-bar">
+    <span class="export-label">Export</span>
+    <a class="btn-sm" href="/incidents/{{.Notebook.Incident.ID}}/export/markdown">Markdown</a>
+    <a class="btn-sm" href="/incidents/{{.Notebook.Incident.ID}}/export/json">JSON</a>
+    <a class="btn-sm" href="/incidents/{{.Notebook.Incident.ID}}/export/docx">DOCX</a>
+  </div>
+
+  {{with .Notebook.Analysis}}
+    <div class="card">
+      <h2>AI analysis <span class="h2-note">{{if eq .Status "ok"}}{{.Provider}} · {{.Model}}{{else}}{{.Status}}{{end}}</span></h2>
+      {{if eq .Status "ok"}}
+        {{if .Summary}}<p class="summary-text">{{.Summary}}</p>{{end}}
+        {{if .Timeline}}
+          <div class="field-label">Timeline</div>
+          <ul class="timeline">{{range .Timeline}}<li><span class="at">{{.At}}</span>{{.Text}}</li>{{end}}</ul>
+        {{end}}
+      {{else if eq .Status "failed"}}
+        <p class="summary-text muted">Analysis failed — the notebook still holds all collected evidence.</p>
+        {{if .Error}}<p class="muted" style="font-size:13px">{{.Error}}</p>{{end}}
+      {{else}}
+        <p class="summary-text muted">No AI provider configured — notebook published with evidence only.</p>
+      {{end}}
+      {{if .Gaps}}<div class="gaps"><b>Evidence gaps</b><ul>{{range .Gaps}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
+      {{if $.Notebook.SimilarUsed}}
+        <div class="similar-used">
+          <b>Informed by past resolved incidents</b>
+          <ul>
+            {{range $.Notebook.SimilarUsed}}
+              <li><a href="/incidents/{{.IncidentID}}">{{.Title}}</a>{{if .Overlap}} <span class="muted">(shared: {{range $i, $n := .Overlap}}{{if $i}}, {{end}}{{$n}}{{end}})</span>{{end}}</li>
+            {{end}}
+          </ul>
+        </div>
+      {{end}}
+    </div>
+  {{end}}
+
+  {{if .Notebook.Observations}}
+    <div class="card">
+      <h2>Observations</h2>
+      {{range .Notebook.Observations}}
+        <p class="obs">{{.Body}}{{if .CiteRefs}} <span class="refs">{{range .CiteRefs}}<span class="ref">{{.}}</span>{{end}}</span>{{end}}</p>
+      {{end}}
+    </div>
+  {{end}}
+
+  {{if .Notebook.Hypotheses}}{{template "hypotheses_card" .}}{{end}}
+  {{template "evidence_card" .}}
+  {{template "resolution_card" .}}
+
+  <div class="card">
+    <h2>Alerts <span class="h2-note">{{len .Notebook.Alerts}}</span></h2>
+    {{range .Notebook.Alerts}}
+      <div class="alert-row">
+        <span class="badge sev-{{.Severity}} plain">{{.Severity}}</span>
+        <span class="txt">{{index .Annotations "summary"}}</span>
+        <span class="when">{{.Source}} · {{shorttime .ReceivedAt}}</span>
+      </div>
+    {{end}}
+  </div>
+{{template "foot" .}}{{end}}
+
+
+{{define "hypotheses_card"}}
+<div class="card" id="hypotheses-card">
+  <h2>Ranked hypotheses</h2>
+  {{$root := .}}
+  {{range .Notebook.Hypotheses}}
+    <div class="hyp">
+      <div class="hyp-head">
+        <span class="rank">{{.Rank}}</span>
+        <span class="title">{{.Title}}</span>
+        {{if ne .Verdict "none"}}<span class="badge hv-{{.Verdict}} plain">{{.Verdict}}</span>{{end}}
+      </div>
+      {{if .Rationale}}<div class="rationale">{{.Rationale}}</div>{{end}}
+      <div class="hyp-evidence">
+        {{if .SupportingRefs}}<div><span class="lbl">supports</span><span class="refs">{{range .SupportingRefs}}<span class="ref">{{.}}</span>{{end}}</span></div>{{end}}
+        {{if .ContradictingRefs}}<div><span class="lbl">contradicts</span><span class="refs">{{range .ContradictingRefs}}<span class="ref contra">{{.}}</span>{{end}}</span></div>{{end}}
+      </div>
+      {{if .Checks}}<ul class="checks">{{range .Checks}}<li>{{.}}</li>{{end}}</ul>{{end}}
+      {{if $root.CanEdit}}
+        <form class="verdict-controls" hx-post="/hypotheses/{{.ID}}/verdict" hx-target="#hypotheses-card" hx-swap="outerHTML">
+          <input type="hidden" name="csrf" value="{{$root.CSRF}}">
+          <input class="note-input" type="text" name="note" placeholder="note (optional)" value="{{.VerdictNote}}">
+          <button class="btn-sm btn-confirm" name="verdict" value="confirmed" type="submit">Confirm</button>
+          <button class="btn-sm btn-reject" name="verdict" value="rejected" type="submit">Reject</button>
+          {{if ne .Verdict "none"}}<button class="btn-sm btn-ghost2" name="verdict" value="none" type="submit">Clear</button>{{end}}
+        </form>
+      {{else if and (ne .Verdict "none") .VerdictNote}}
+        <div class="verdict-note">“{{.VerdictNote}}”</div>
+      {{end}}
+    </div>
+  {{end}}
+</div>
+{{end}}
+
+
+{{define "evidence_card"}}
+<div class="card" id="evidence-card">
+  <h2>Evidence <span class="h2-note">{{len .Notebook.Evidence}} item{{if ne (len .Notebook.Evidence) 1}}s{{end}}</span></h2>
+  {{if not .Notebook.Evidence}}<p class="muted">No evidence collected.</p>{{end}}
+  {{$root := .}}
+  {{range .Notebook.Evidence}}
+    <details class="evidence">
+      <summary>
+        <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        <span class="ref">{{.Ref}}</span>
+        <span class="badge ev-{{.Status}} plain">{{.Status}}</span>
+        <span class="grow">{{.Collector}} · {{.Kind}}{{if not .IsValid}} · flagged invalid{{end}}</span>
+        <span class="when">{{shorttime .CapturedAt}}</span>
+      </summary>
+      <div class="body">
+        {{if not .IsValid}}<div class="flag">⚑ Flagged invalid: {{.InvalidComment}}</div>{{end}}
+        {{if .Error}}<div class="flag">{{.Error}}</div>{{end}}
+        <div class="field-label">Request · reproducible</div>
+        <pre class="json">{{.Request}}</pre>
+        {{if .Result}}<div class="field-label">Result</div><pre class="json">{{.Result}}</pre>{{end}}
+        {{if and $root.CanEdit .IsValid}}
+          <form class="flag-form" hx-post="/evidence/{{.ID}}/flag" hx-target="#evidence-card" hx-swap="outerHTML">
+            <input type="hidden" name="csrf" value="{{$root.CSRF}}">
+            <input class="note-input" type="text" name="comment" placeholder="why is this evidence invalid?" required>
+            <button class="btn-sm btn-reject" type="submit">Flag invalid</button>
+          </form>
+        {{end}}
+      </div>
+    </details>
+  {{end}}
+</div>
+{{end}}
+
+
+{{define "resolution_card"}}
+<div class="card" id="resolution-card">
+  <h2>Resolution</h2>
+  {{with .Notebook.Resolution}}
+    <div class="field-label">Root cause</div><p class="summary-text">{{.RootCause}}</p>
+    {{if .ActionsTaken}}<div class="field-label">Actions taken</div><p>{{.ActionsTaken}}</p>{{end}}
+    {{if .UltimateSolution}}<div class="field-label">Solution / prevention</div><p>{{.UltimateSolution}}</p>{{end}}
+    {{if .Notes}}<div class="field-label">Notes</div><p>{{.Notes}}</p>{{end}}
+    <div class="muted" style="font-size:13px;margin-top:10px">Resolved by {{.ResolvedBy}} · {{fulltime .ResolvedAt}}</div>
+  {{end}}
+  {{if .CanEdit}}
+    <form class="resolution-form" method="post" action="/incidents/{{.Notebook.Incident.ID}}/resolution"
+          hx-post="/incidents/{{.Notebook.Incident.ID}}/resolution">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label>Root cause <span class="req">*</span>
+        <textarea name="root_cause" rows="2" required>{{with .Notebook.Resolution}}{{.RootCause}}{{end}}</textarea></label>
+      <label>Actions taken
+        <textarea name="actions_taken" rows="2">{{with .Notebook.Resolution}}{{.ActionsTaken}}{{end}}</textarea></label>
+      <label>Solution / prevention
+        <textarea name="ultimate_solution" rows="2">{{with .Notebook.Resolution}}{{.UltimateSolution}}{{end}}</textarea></label>
+      <label>Notes
+        <textarea name="notes" rows="2">{{with .Notebook.Resolution}}{{.Notes}}{{end}}</textarea></label>
+      <button class="btn-primary" type="submit">{{if .Notebook.Resolution}}Update resolution{{else}}Save resolution &amp; mark resolved{{end}}</button>
+    </form>
+  {{else if not .Notebook.Resolution}}
+    <p class="muted">No resolution recorded yet.</p>
+  {{end}}
+</div>
+{{end}}

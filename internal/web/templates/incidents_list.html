@@ -1,0 +1,36 @@
+{{define "incidents_list"}}{{template "head" .}}
+  <div class="page-head">
+    <h1 class="page-title">Incidents</h1>
+    <span class="page-count">{{len .Incidents}}</span>
+  </div>
+
+  <form class="search" action="/" method="get" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.2-4.2"/></svg>
+    <input type="search" name="q" value="{{.Query}}" placeholder="Search incidents…"
+           hx-get="/" hx-trigger="input changed delay:300ms, search"
+           hx-target="#incident-list" hx-select="#incident-list" hx-swap="outerHTML"
+           hx-push-url="true" autocomplete="off">
+  </form>
+
+  {{template "incident_list_fragment" .}}
+{{template "foot" .}}{{end}}
+
+{{define "incident_list_fragment"}}
+<div id="incident-list" class="incident-list">
+  {{if not .Incidents}}
+    <div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+      <div>No incidents{{if .Query}} match “{{.Query}}”{{end}} yet.</div>
+    </div>
+  {{end}}
+  {{range .Incidents}}
+    <a class="incident-row" href="/incidents/{{.ID}}">
+      <span class="badge sev-{{.Severity}} plain">{{.Severity}}</span>
+      <span class="title">{{.Title}}</span>
+      {{if .TriageVerdict}}<span class="badge verdict-{{.TriageVerdict}} plain">{{.TriageVerdict}}</span>{{end}}
+      <span class="badge st-{{.Status}} plain">{{.Status}}</span>
+      <span class="meta">{{.AlertCount}} alert{{if ne .AlertCount 1}}s{{end}} · {{shorttime .OpenedAt}}</span>
+    </a>
+  {{end}}
+</div>
+{{end}}

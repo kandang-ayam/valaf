@@ -1,0 +1,19 @@
+{{define "login"}}{{template "head" .}}
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <img class="auth-logo" src="/static/logo.svg" alt="">
+      <h1>Sign in to valaf</h1>
+      <p class="auth-sub">Incident notebook</p>
+      {{if .Error}}<div class="auth-error">{{.Error}}</div>{{end}}
+      <form method="post" action="/login" class="auth-form">
+        <label>Username
+          <input name="username" autocomplete="username" autofocus required>
+        </label>
+        <label>Password
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button class="btn-primary" type="submit">Sign in</button>
+      </form>
+    </div>
+  </div>
+{{template "foot" .}}{{end}}
