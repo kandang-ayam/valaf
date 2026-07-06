@@ -23,6 +23,7 @@ coverage.html
 *.swp
 Thumbs.db
 .DS_Store
+.claude/
 
 
 architecture.drawio
