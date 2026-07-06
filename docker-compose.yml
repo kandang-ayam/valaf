@@ -23,6 +23,8 @@ services:
     command: serve            # applies migrations on startup
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - valaf:/var/lib/valaf
     environment:
       VALAF_DATABASE_URL: postgres://${POSTGRES_USER:-valaf}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-valaf}?sslmode=disable
     ports:
@@ -47,3 +49,4 @@ services:
 
 volumes:
   pgdata:
+  valaf:
