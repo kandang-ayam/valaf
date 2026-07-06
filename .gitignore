@@ -22,3 +22,10 @@ coverage.html
 *.swp
 Thumbs.db
 .DS_Store
+
+
+architecture.drawio
+erd.drawio
+flowchart.drawio
+
+PROJECT_BRIEF.md

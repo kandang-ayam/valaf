@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go version *)",
+      "Bash(go env *)",
+      "Bash(go mod *)",
+      "Bash(go get *)",
+      "Bash(go vet *)",
+      "Bash(go build *)",
+      "Bash(export VALAF_DATABASE_URL=\"postgres://postgres:valaf@127.0.0.1:55432/valaf?sslmode=disable\")",
+      "Bash(go run *)",
+      "Bash(docker exec *)",
+      "Bash(docker exec valaf-pg psql -U postgres -d valaf -c ' *)",
+      "Bash(docker rm *)",
+      "Bash(go test *)",
+      "Bash(cp /d/falava/internal/web/static/* /d/falava/.preview-snap/static/)",
+      "Bash(VALAF_DUMP_HTML=/d/falava/.preview-snap go test ./internal/web/ -run TestDumpSnapshot -count=1)"
+    ]
+  }
+}
