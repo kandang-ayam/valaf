@@ -10,6 +10,7 @@ valaf.yaml
 # Env
 .env
 .env.*
+!.env.example
 
 # Test & coverage artifacts
 *.test

@@ -1,0 +1,49 @@
+# valaf — AI-powered incident notebook.
+# One image, two roles (web + worker), plus PostgreSQL. All configuration comes
+# from .env (copy .env.example to .env and edit).
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-valaf}
+      POSTGRES_USER: ${POSTGRES_USER:-valaf}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-valaf} -d ${POSTGRES_DB:-valaf}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  web:
+    image: valaf:latest
+    build: .
+    command: serve            # applies migrations on startup
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      VALAF_DATABASE_URL: postgres://${POSTGRES_USER:-valaf}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-valaf}?sslmode=disable
+    ports:
+      - "${VALAF_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    image: valaf:latest
+    build: .
+    command: worker           # evidence collection, AI analysis, notifications
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      VALAF_DATABASE_URL: postgres://${POSTGRES_USER:-valaf}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-valaf}?sslmode=disable
+    depends_on:
+      web:
+        condition: service_started   # web runs the migrations first
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
