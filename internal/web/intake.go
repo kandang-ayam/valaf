@@ -34,10 +34,15 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Log every arrival so operators can see the webhook is reachable at all.
+	s.log.InfoContext(ctx, "webhook received", "source", name, "bytes", len(body), "remote", r.RemoteAddr)
+
 	src, err := s.sources.FindActive(ctx, name)
 	if err != nil {
 		if errors.Is(err, store.ErrSourceNotFound) {
-			// Same response as a bad token — don't reveal which sources exist.
+			// Generic 401 to the caller (don't reveal which sources exist), but a
+			// specific reason in our own logs.
+			s.log.WarnContext(ctx, "webhook rejected: unknown intake source (run `valaf intake-token`?)", "source", name)
 			writeJSON(w, http.StatusUnauthorized, webhookResponse{Error: "unauthorized"})
 			return
 		}
@@ -47,6 +52,7 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !authenticate(src, r, body) {
+		s.log.WarnContext(ctx, "webhook rejected: bad credentials", "source", name, "auth_method", src.AuthMethod)
 		writeJSON(w, http.StatusUnauthorized, webhookResponse{Error: "unauthorized"})
 		return
 	}
@@ -73,9 +79,11 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 
 	if res.Dropped {
 		// 200 (not an error) so Alertmanager doesn't retry filtered noise.
+		s.log.InfoContext(ctx, "webhook dropped (below severity threshold — only high/critical create notebooks)", "source", name, "reason", res.Reason)
 		writeJSON(w, http.StatusOK, webhookResponse{Dropped: true, Reason: res.Reason})
 		return
 	}
+	s.log.InfoContext(ctx, "incident ingested", "source", name, "incident", res.IncidentID, "created", res.Created, "alerts", res.Alerts)
 	writeJSON(w, http.StatusAccepted, webhookResponse{
 		IncidentID: res.IncidentID,
 		Created:    res.Created,
