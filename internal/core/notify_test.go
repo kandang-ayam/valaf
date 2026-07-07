@@ -71,6 +71,22 @@ func TestNotify_NonActionableIsQuiet(t *testing.T) {
 	}
 }
 
+// With AI disabled/failed the verdict is "unknown"; such incidents already
+// cleared the severity gate at intake, so they must still notify.
+func TestNotify_UnknownVerdictStillNotifies(t *testing.T) {
+	for _, verdict := range []string{"unknown", ""} {
+		repo := &fakeNotifyRepo{note: Notification{Verdict: verdict, Title: "x", Severity: "critical"}}
+		ch := &fakeChannel{name: "slack"}
+		res, err := NewNotificationService(repo, []NotificationChannel{ch}, "").Notify(context.Background(), "inc")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Quiet || res.Sent != 1 {
+			t.Fatalf("verdict %q: expected a send, got %+v", verdict, res)
+		}
+	}
+}
+
 func TestNotify_SendFailureRecordedNotFatal(t *testing.T) {
 	repo := &fakeNotifyRepo{note: Notification{Verdict: "actionable"}}
 	ch := &fakeChannel{name: "telegram", err: errors.New("timeout")}

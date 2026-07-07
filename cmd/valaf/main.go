@@ -118,7 +118,12 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, log *slog
 	userRepo := store.NewUserRepo(pool)
 	sessionRepo := store.NewSessionRepo(pool)
 	reviewRepo := store.NewReviewRepo(pool)
-	intakeSvc := core.NewService(incidentRepo)
+	threshold := core.ParseSeverity(cfg.SeverityThreshold)
+	if threshold == core.SevUnknown {
+		threshold = core.SevHigh
+	}
+	log.Info("intake severity threshold", "threshold", cfg.SeverityThreshold)
+	intakeSvc := core.NewService(incidentRepo, core.WithThreshold(threshold))
 	adapters := map[string]core.IntakeAdapter{
 		string(core.SourceAlertmanager): alertmanager.New(),
 	}

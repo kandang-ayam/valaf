@@ -17,6 +17,10 @@ type Config struct {
 	HTTPAddr    string
 	LogLevel    string
 
+	// SeverityThreshold is the minimum alert severity that opens a notebook:
+	// "warning" | "high" | "critical". Default "high".
+	SeverityThreshold string
+
 	// PrometheusURL binds the metrics collector. Empty = collector disabled
 	// (its evidence simply isn't gathered — an honest gap, not an error).
 	PrometheusURL string
@@ -54,8 +58,9 @@ type Config struct {
 func Load() (Config, error) {
 	c := Config{
 		DatabaseURL:   firstNonEmpty(os.Getenv("VALAF_DATABASE_URL"), os.Getenv("DATABASE_URL")),
-		HTTPAddr:      getenv("VALAF_HTTP_ADDR", ":8080"),
-		LogLevel:      getenv("VALAF_LOG_LEVEL", "info"),
+		HTTPAddr:          getenv("VALAF_HTTP_ADDR", ":8080"),
+		LogLevel:          getenv("VALAF_LOG_LEVEL", "info"),
+		SeverityThreshold: getenv("VALAF_SEVERITY_THRESHOLD", "high"),
 		PrometheusURL: os.Getenv("VALAF_PROMETHEUS_URL"),
 		AIProvider:    os.Getenv("VALAF_AI_PROVIDER"),
 		AIBaseURL:     os.Getenv("VALAF_AI_BASE_URL"),

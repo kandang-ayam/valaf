@@ -75,9 +75,15 @@ func (s *Service) Ingest(ctx context.Context, adapter IntakeAdapter, body []byte
 		return IngestResult{}, fmt.Errorf("%w: %v", ErrBadPayload, err)
 	}
 
-	level, ok := batch.MaxSeverity().IncidentLevel()
-	if !ok || !batch.MaxSeverity().AtLeast(s.threshold) {
+	sev := batch.MaxSeverity()
+	if sev == SevUnknown || !sev.AtLeast(s.threshold) {
 		return IngestResult{Dropped: true, Reason: "severity below threshold"}, nil
+	}
+	// The incidents.severity enum is high|critical; anything that clears the
+	// (configurable) threshold but is below critical is recorded as high.
+	level := "high"
+	if sev >= SevCritical {
+		level = "critical"
 	}
 
 	out, err := s.repo.IngestBatch(ctx, batch, level, time.Now().Add(-s.window))

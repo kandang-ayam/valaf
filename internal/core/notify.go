@@ -79,7 +79,7 @@ func (s *NotificationService) Notify(ctx context.Context, incidentID string) (No
 	}
 	note.IncidentURL = s.incidentURL(incidentID)
 
-	if note.Verdict != "actionable" {
+	if !shouldNotify(note) {
 		if err := s.repo.Record(ctx, incidentID, "gate", "", "quiet", "noise"); err != nil {
 			return NotifyResult{}, err
 		}
@@ -101,6 +101,21 @@ func (s *NotificationService) Notify(ctx context.Context, incidentID string) (No
 		}
 	}
 	return res, nil
+}
+
+// shouldNotify decides whether an incident warrants a ping. An AI "actionable"
+// verdict always notifies; an explicit "likely_noise" stays quiet. When there is
+// no AI verdict (AI disabled or failed → "unknown"/empty), we still notify,
+// because the incident already cleared the severity threshold at intake.
+func shouldNotify(n Notification) bool {
+	switch n.Verdict {
+	case "actionable":
+		return true
+	case "likely_noise":
+		return false
+	default: // "unknown" | "" — no AI opinion; the severity gate already vouched for it
+		return true
+	}
 }
 
 func (s *NotificationService) incidentURL(id string) string {
