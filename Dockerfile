@@ -13,7 +13,10 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/valaf ./cmd/valaf
 # ---- runtime stage ----
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata \
- && addgroup -S valaf && adduser -S -G valaf valaf
+ && addgroup -S valaf && adduser -S -G valaf valaf \
+ # data dir (blob store default); owned by valaf so a named volume mounted
+ # here inherits the ownership on first use and the non-root user can write
+ && mkdir -p /var/lib/valaf && chown valaf:valaf /var/lib/valaf
 COPY --from=build /out/valaf /usr/local/bin/valaf
 
 USER valaf

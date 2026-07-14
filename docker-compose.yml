@@ -19,6 +19,18 @@ services:
       timeout: 3s
       retries: 12
 
+  # One-shot init: the app runs as the non-root `valaf` user, but a named
+  # volume is created root-owned — chown it so web/worker can write blobs.
+  init-data:
+    image: valaf:latest
+    build: .
+    user: root
+    entrypoint: ["chown", "-R", "valaf:valaf", "/var/lib/valaf"]
+    volumes:
+      - valaf:/var/lib/valaf
+    network_mode: none
+    restart: "no"
+
   web:
     image: valaf:latest
     build: .
@@ -36,6 +48,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      init-data:
+        condition: service_completed_successfully
 
   worker:
     image: valaf:latest
@@ -54,6 +68,8 @@ services:
         condition: service_started   # web runs the migrations first
       postgres:
         condition: service_healthy
+      init-data:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:
