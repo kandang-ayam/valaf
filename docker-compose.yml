@@ -60,7 +60,7 @@ volumes:
   valaf:
   
 networks:
-  observability:
+  observability-net:
     external: true
     name: ${OBS_NETWORK:-observability-net}
 
