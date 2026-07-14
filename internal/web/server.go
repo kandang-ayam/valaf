@@ -11,27 +11,31 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/valaf/valaf/internal/blob"
 	"github.com/valaf/valaf/internal/core"
 	"github.com/valaf/valaf/internal/store"
 )
 
 type Server struct {
-	pool     *pgxpool.Pool
-	log      *slog.Logger
-	intake   *core.Service
-	sources  *store.SourceRepo
-	read     *store.ReadRepo
-	users    *store.UserRepo
-	sessions *store.SessionRepo
-	review   *store.ReviewRepo
-	authCfg  AuthConfig
-	adapters map[string]core.IntakeAdapter // keyed by intake_sources.source_type
+	pool        *pgxpool.Pool
+	log         *slog.Logger
+	intake      *core.Service
+	sources     *store.SourceRepo
+	read        *store.ReadRepo
+	users       *store.UserRepo
+	sessions    *store.SessionRepo
+	review      *store.ReviewRepo
+	attachments *store.AttachmentRepo
+	blob        blob.Store
+	authCfg     AuthConfig
+	adapters    map[string]core.IntakeAdapter // keyed by intake_sources.source_type
 }
 
-func New(pool *pgxpool.Pool, log *slog.Logger, intake *core.Service, sources *store.SourceRepo, read *store.ReadRepo, users *store.UserRepo, sessions *store.SessionRepo, review *store.ReviewRepo, authCfg AuthConfig, adapters map[string]core.IntakeAdapter) *Server {
+func New(pool *pgxpool.Pool, log *slog.Logger, intake *core.Service, sources *store.SourceRepo, read *store.ReadRepo, users *store.UserRepo, sessions *store.SessionRepo, review *store.ReviewRepo, attachments *store.AttachmentRepo, blobStore blob.Store, authCfg AuthConfig, adapters map[string]core.IntakeAdapter) *Server {
 	return &Server{
 		pool: pool, log: log, intake: intake, sources: sources, read: read,
-		users: users, sessions: sessions, review: review, authCfg: authCfg, adapters: adapters,
+		users: users, sessions: sessions, review: review,
+		attachments: attachments, blob: blobStore, authCfg: authCfg, adapters: adapters,
 	}
 }
 
@@ -52,6 +56,7 @@ func (s *Server) Handler() http.Handler {
 	// Notebook UI (requires an authenticated user)
 	mux.HandleFunc("GET /incidents/{id}", s.requireUser(s.incidentDetail))
 	mux.HandleFunc("GET /incidents/{id}/export/{format}", s.requireUser(s.exportIncident))
+	mux.HandleFunc("GET /attachments/{id}", s.requireUser(s.attachment))
 	mux.HandleFunc("GET /{$}", s.requireUser(s.incidentList))
 
 	// Review actions (engineer role, CSRF-checked, audit-logged)

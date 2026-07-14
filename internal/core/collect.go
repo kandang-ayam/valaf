@@ -22,20 +22,35 @@ type TimeWindow struct {
 
 // CollectTarget is everything a collector needs to gather evidence for an incident.
 type CollectTarget struct {
-	IncidentID string
-	EntityBag  map[string]string
-	Window     TimeWindow
+	IncidentID  string
+	Title       string   // incident title (usually the alertname)
+	Alertnames  []string // distinct alertnames on the incident, for query selection
+	EntityBag   map[string]string
+	Annotations map[string]string // merged alert labels+annotations (e.g. Grafana panel refs)
+	Window      TimeWindow
 }
 
 // EvidenceItem is one captured (or failed) piece of evidence. Result is set only
 // when Status == EvidenceOK, matching the evidence_result_presence DB constraint.
 type EvidenceItem struct {
-	Collector string          // collector_type enum value
-	Kind      string          // evidence_kind enum value
-	Request   json.RawMessage // the exact, reproducible query/request
-	Result    json.RawMessage // raw result; present only when Status == ok
-	Status    string
-	Error     string
+	Collector  string          // collector_type enum value
+	Kind       string          // evidence_kind enum value
+	Request    json.RawMessage // the exact, reproducible query/request
+	Result     json.RawMessage // raw result; present only when Status == ok
+	Status     string
+	Error      string
+	Attachment *Attachment // optional binary already written to the blob store
+}
+
+// Attachment references binary evidence (e.g. a dashboard snapshot PNG) that the
+// collector has already stored in the blob store. The store persists this as an
+// attachments row linked to the evidence item.
+type Attachment struct {
+	StorageBackend string // "local" | "s3"
+	StorageKey     string
+	MimeType       string
+	SizeBytes      int64
+	Checksum       string // sha-256 hex
 }
 
 // Collector gathers evidence for a target. It is best-effort and MUST NOT return

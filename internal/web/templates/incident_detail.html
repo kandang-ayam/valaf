@@ -133,9 +133,36 @@
       <div class="body">
         {{if not .IsValid}}<div class="flag">⚑ Flagged invalid: {{.InvalidComment}}</div>{{end}}
         {{if .Error}}<div class="flag">{{.Error}}</div>{{end}}
-        <div class="field-label">Request · reproducible</div>
-        <pre class="json">{{.Request}}</pre>
-        {{if .Result}}<div class="field-label">Result</div><pre class="json">{{.Result}}</pre>{{end}}
+        {{if .ImageID}}
+          <div class="snapshot">
+            <img src="/attachments/{{.ImageID}}" alt="dashboard snapshot" loading="lazy">
+            {{if .ViewURL}}<a class="snapshot-link" href="{{.ViewURL}}" target="_blank" rel="noopener">Open in Grafana ↗</a>{{end}}
+          </div>
+        {{end}}
+        {{if .Query}}<div class="field-label">Query · reproducible</div><pre class="promql">{{.Query}}</pre>{{end}}
+        {{if .Metrics}}
+          <div class="field-label">Summary</div>
+          <table class="metric-table">
+            <thead><tr><th>series</th><th>min</th><th>avg</th><th>max</th><th>last</th><th>trend</th></tr></thead>
+            <tbody>
+              {{range .Metrics}}
+                <tr>
+                  <td class="mlabel">{{if .Label}}{{.Label}}{{else}}(all){{end}}</td>
+                  <td>{{.Min}}</td><td>{{.Avg}}</td><td>{{.Max}}</td><td class="mlast">{{.Last}}</td>
+                  <td class="mtrend">{{sparkline .Trend}}</td>
+                </tr>
+              {{end}}
+            </tbody>
+          </table>
+          <details class="raw-toggle"><summary>raw request &amp; result</summary>
+            <div class="field-label">Request</div><pre class="json">{{.Request}}</pre>
+            <div class="field-label">Result</div><pre class="json">{{.Result}}</pre>
+          </details>
+        {{else}}
+          <div class="field-label">Request · reproducible</div>
+          <pre class="json">{{.Request}}</pre>
+          {{if .Result}}<div class="field-label">Result</div><pre class="json">{{.Result}}</pre>{{end}}
+        {{end}}
         {{if and $root.CanEdit .IsValid}}
           <form class="flag-form" hx-post="/evidence/{{.ID}}/flag" hx-target="#evidence-card" hx-swap="outerHTML">
             <input type="hidden" name="csrf" value="{{$root.CSRF}}">

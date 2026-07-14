@@ -52,6 +52,19 @@ type Config struct {
 	SMTPTo           []string
 	WebhookURL       string
 	WebhookToken     string
+
+	// Snapshot storage (blob store for dashboard PNGs). S3 set = s3 backend,
+	// otherwise local volume at DataDir.
+	S3Endpoint  string
+	S3Bucket    string
+	S3AccessKey string
+	S3SecretKey string
+	S3UseSSL    bool
+	DataDir     string
+
+	// Grafana snapshot collector. Empty = disabled (no dashboard captures).
+	GrafanaURL   string
+	GrafanaToken string
 }
 
 // Load reads configuration from the environment and validates required fields.
@@ -82,6 +95,16 @@ func Load() (Config, error) {
 		SMTPTo:           splitList(os.Getenv("VALAF_SMTP_TO")),
 		WebhookURL:       os.Getenv("VALAF_WEBHOOK_URL"),
 		WebhookToken:     os.Getenv("VALAF_WEBHOOK_TOKEN"),
+
+		S3Endpoint:  os.Getenv("VALAF_S3_ENDPOINT"),
+		S3Bucket:    os.Getenv("VALAF_S3_BUCKET"),
+		S3AccessKey: os.Getenv("VALAF_S3_ACCESS_KEY"),
+		S3SecretKey: os.Getenv("VALAF_S3_SECRET_KEY"),
+		S3UseSSL:    os.Getenv("VALAF_S3_USE_SSL") == "true",
+		DataDir:     getenv("VALAF_DATA_DIR", "/var/lib/valaf"),
+
+		GrafanaURL:   strings.TrimRight(os.Getenv("VALAF_GRAFANA_URL"), "/"),
+		GrafanaToken: os.Getenv("VALAF_GRAFANA_TOKEN"),
 	}
 	if c.DatabaseURL == "" {
 		return c, errors.New("VALAF_DATABASE_URL (or DATABASE_URL) is required")

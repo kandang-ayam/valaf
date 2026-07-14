@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"embed"
+	"fmt"
 	"html/template"
 	"net/http"
 	"time"
@@ -17,6 +18,43 @@ var staticFS embed.FS
 var funcs = template.FuncMap{
 	"shorttime": shortTime,
 	"fulltime":  fullTime,
+	"sparkline": sparkline,
+}
+
+// sparkline renders a compact inline SVG line from a series of values.
+func sparkline(vals []float64) template.HTML {
+	if len(vals) < 2 {
+		return ""
+	}
+	const w, h = 140.0, 26.0
+	min, max := vals[0], vals[0]
+	for _, v := range vals {
+		if v < min {
+			min = v
+		}
+		if v > max {
+			max = v
+		}
+	}
+	span := max - min
+	if span == 0 {
+		span = 1
+	}
+	var b bytes.Buffer
+	for i, v := range vals {
+		x := float64(i) / float64(len(vals)-1) * w
+		y := h - ((v-min)/span)*(h-4) - 2
+		if i == 0 {
+			fmt.Fprintf(&b, "M%.1f,%.1f", x, y)
+		} else {
+			fmt.Fprintf(&b, " L%.1f,%.1f", x, y)
+		}
+	}
+	svg := fmt.Sprintf(
+		`<svg class="spark" viewBox="0 0 %g %g" width="%g" height="%g" preserveAspectRatio="none">`+
+			`<path d="%s" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
+		w, h, w, h, b.String())
+	return template.HTML(svg) //nolint:gosec // values are numbers we formatted
 }
 
 var templates = template.Must(template.New("").Funcs(funcs).ParseFS(templatesFS, "templates/*.html"))

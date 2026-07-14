@@ -28,9 +28,11 @@ import (
 
 	"github.com/valaf/valaf/internal/adapters/ai"
 	"github.com/valaf/valaf/internal/adapters/alertmanager"
+	"github.com/valaf/valaf/internal/adapters/grafana"
 	"github.com/valaf/valaf/internal/adapters/notify"
 	"github.com/valaf/valaf/internal/adapters/prometheus"
 	"github.com/valaf/valaf/internal/auth"
+	"github.com/valaf/valaf/internal/blob"
 	"github.com/valaf/valaf/internal/config"
 	"github.com/valaf/valaf/internal/core"
 	"github.com/valaf/valaf/internal/migrate"
@@ -133,9 +135,16 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, log *slog
 		SessionTTL:         7 * 24 * time.Hour,
 	}
 
+	// Blob store lets the web role stream evidence images (dashboard snapshots).
+	blobStore, err := buildBlobStore(cfg, log)
+	if err != nil {
+		return fmt.Errorf("blob store: %w", err)
+	}
+	attachmentRepo := store.NewAttachmentRepo(pool)
+
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           web.New(pool, log, intakeSvc, sourceRepo, readRepo, userRepo, sessionRepo, reviewRepo, authCfg, adapters).Handler(),
+		Handler:           web.New(pool, log, intakeSvc, sourceRepo, readRepo, userRepo, sessionRepo, reviewRepo, attachmentRepo, blobStore, authCfg, adapters).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -158,7 +167,11 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, log *slog
 }
 
 func runWorker(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) error {
-	collectors := buildCollectors(cfg, log)
+	blobStore, err := buildBlobStore(cfg, log)
+	if err != nil {
+		return fmt.Errorf("blob store: %w", err)
+	}
+	collectors := buildCollectors(cfg, log, blobStore)
 	collection := core.NewCollectionService(store.NewEvidenceRepo(pool), collectors)
 
 	provider := buildAIProvider(cfg, log)
@@ -215,13 +228,35 @@ func buildAIProvider(cfg config.Config, log *slog.Logger) core.AIProvider {
 
 // buildCollectors registers a collector per configured role. An unconfigured
 // role is simply absent — its evidence becomes an honest gap, not an error.
-func buildCollectors(cfg config.Config, log *slog.Logger) []core.Collector {
+func buildCollectors(cfg config.Config, log *slog.Logger, blobStore blob.Store) []core.Collector {
 	var cs []core.Collector
 	if cfg.PrometheusURL != "" {
 		cs = append(cs, prometheus.New(cfg.PrometheusURL))
 		log.Info("collector enabled", "kind", "prometheus", "url", cfg.PrometheusURL)
 	}
+	if cfg.GrafanaURL != "" && cfg.GrafanaToken != "" {
+		cs = append(cs, grafana.New(cfg.GrafanaURL, cfg.GrafanaToken, blobStore))
+		log.Info("collector enabled", "kind", "grafana", "url", cfg.GrafanaURL)
+	}
 	return cs
+}
+
+// buildBlobStore constructs the blob backend from config (S3 when set, else
+// local volume). Used by the worker (to write snapshots) and web (to serve them).
+func buildBlobStore(cfg config.Config, log *slog.Logger) (blob.Store, error) {
+	store, err := blob.New(blob.Config{
+		S3Endpoint:  cfg.S3Endpoint,
+		S3Bucket:    cfg.S3Bucket,
+		S3AccessKey: cfg.S3AccessKey,
+		S3SecretKey: cfg.S3SecretKey,
+		S3UseSSL:    cfg.S3UseSSL,
+		LocalDir:    cfg.DataDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+	log.Info("blob store", "backend", store.Backend())
+	return store, nil
 }
 
 // intakeToken creates or rotates a shared-token intake source and prints the

@@ -84,12 +84,27 @@ type EvidenceView struct {
 	Collector      string
 	Kind           string
 	Status         string
-	Request        string // pretty JSON
-	Result         string // pretty JSON
+	Query          string         // the PromQL / request query, shown plainly
+	Metrics        []MetricSeries // parsed metric summary (nil for non-metric)
+	ImageID        string         // attachment id when this evidence has an image (dashboard snapshot)
+	ViewURL        string         // deep link to the source (e.g. Grafana panel)
+	Request        string         // pretty JSON (raw, in an expander)
+	Result         string         // pretty JSON (raw, in an expander)
 	Error          string
 	IsValid        bool
 	InvalidComment string
 	CapturedAt     time.Time
+}
+
+// MetricSeries is one summarized series for readable display.
+type MetricSeries struct {
+	Label string // compact label like `mountpoint="/"`
+	Min   float64
+	Max   float64
+	Avg   float64
+	First float64
+	Last  float64
+	Trend []float64
 }
 
 type ResolutionView struct {
@@ -275,9 +290,12 @@ func (r *ReadRepo) loadAlerts(ctx context.Context, nb *Notebook) error {
 
 func (r *ReadRepo) loadEvidence(ctx context.Context, nb *Notebook) (map[string]string, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id::text, collector::text, kind::text, status::text, request, result,
-		       COALESCE(error, ''), is_valid, COALESCE(invalid_comment, ''), captured_at
-		FROM evidence_items WHERE incident_id = $1 ORDER BY captured_at, id`, nb.Incident.ID)
+		SELECT e.id::text, e.collector::text, e.kind::text, e.status::text, e.request, e.result,
+		       COALESCE(e.error, ''), e.is_valid, COALESCE(e.invalid_comment, ''), e.captured_at,
+		       (SELECT a.id::text FROM attachments a
+		        WHERE a.evidence_item_id = e.id AND a.mime_type LIKE 'image/%'
+		        ORDER BY a.created_at LIMIT 1)
+		FROM evidence_items e WHERE e.incident_id = $1 ORDER BY e.captured_at, e.id`, nb.Incident.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -288,12 +306,19 @@ func (r *ReadRepo) loadEvidence(ctx context.Context, nb *Notebook) (map[string]s
 	for rows.Next() {
 		var e EvidenceView
 		var request, result []byte
+		var imageID *string
 		if err := rows.Scan(&e.ID, &e.Collector, &e.Kind, &e.Status, &request, &result,
-			&e.Error, &e.IsValid, &e.InvalidComment, &e.CapturedAt); err != nil {
+			&e.Error, &e.IsValid, &e.InvalidComment, &e.CapturedAt, &imageID); err != nil {
 			return nil, err
 		}
 		i++
 		e.Ref = "E" + strconv.Itoa(i)
+		e.Query = extractQuery(request)
+		e.Metrics = parseMetricSummary(result)
+		e.ViewURL = extractViewURL(result)
+		if imageID != nil {
+			e.ImageID = *imageID
+		}
 		e.Request = prettyJSON(request)
 		e.Result = prettyJSON(result)
 		refByID[e.ID] = e.Ref
@@ -302,17 +327,75 @@ func (r *ReadRepo) loadEvidence(ctx context.Context, nb *Notebook) (map[string]s
 	return refByID, rows.Err()
 }
 
+// extractQuery pulls the human-readable query out of a collector request record.
+func extractQuery(request []byte) string {
+	var m struct {
+		Query string `json:"query"`
+	}
+	_ = json.Unmarshal(request, &m)
+	return m.Query
+}
+
+// extractViewURL pulls a deep link (e.g. Grafana panel) from a result record.
+func extractViewURL(result []byte) string {
+	var m struct {
+		ViewURL string `json:"view_url"`
+	}
+	_ = json.Unmarshal(result, &m)
+	return m.ViewURL
+}
+
+// parseMetricSummary turns a prometheus collector summary into display rows.
+// Returns nil when the result isn't a metric summary (e.g. a gap or other kind).
+func parseMetricSummary(result []byte) []MetricSeries {
+	if len(result) == 0 {
+		return nil
+	}
+	var s struct {
+		Series []struct {
+			Labels map[string]string `json:"labels"`
+			Min    float64           `json:"min"`
+			Max    float64           `json:"max"`
+			Avg    float64           `json:"avg"`
+			First  float64           `json:"first"`
+			Last   float64           `json:"last"`
+			Trend  []float64         `json:"trend"`
+		} `json:"series"`
+	}
+	if err := json.Unmarshal(result, &s); err != nil || len(s.Series) == 0 {
+		return nil
+	}
+	out := make([]MetricSeries, 0, len(s.Series))
+	for _, sr := range s.Series {
+		out = append(out, MetricSeries{
+			Label: compactLabels(sr.Labels),
+			Min:   sr.Min, Max: sr.Max, Avg: sr.Avg, First: sr.First, Last: sr.Last, Trend: sr.Trend,
+		})
+	}
+	return out
+}
+
+// compactLabels renders the most identifying labels as a short string.
+func compactLabels(m map[string]string) string {
+	for _, k := range []string{"mountpoint", "device", "host", "nodename", "instance"} {
+		if v := m[k]; v != "" {
+			return k + `="` + v + `"`
+		}
+	}
+	return ""
+}
+
 func (r *ReadRepo) loadAnalysis(ctx context.Context, nb *Notebook) (string, error) {
 	var (
-		a          AnalysisView
-		id         string
-		provider   *string
-		model      *string
-		summary    *string
-		verdict    *string
-		errText    *string
-		timeline   []byte
-		gaps       []byte
+		a        AnalysisView
+		id       string
+		provider *string
+		model    *string
+		summary  *string
+		verdict  *string
+		errText  *string
+		timeline []byte
+		gaps     []byte
 	)
 	err := r.pool.QueryRow(ctx, `
 		SELECT id::text, provider::text, model, status::text, summary, timeline, gaps,

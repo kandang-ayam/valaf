@@ -39,6 +39,8 @@ services:
     command: worker           # evidence collection, AI analysis, notifications
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - valaf:/var/lib/valaf   # shared with web: worker writes snapshots, web serves them
     environment:
       VALAF_DATABASE_URL: postgres://${POSTGRES_USER:-valaf}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-valaf}?sslmode=disable
     depends_on:

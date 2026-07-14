@@ -61,17 +61,22 @@ func (r *IncidentRepo) IngestBatch(ctx context.Context, batch core.AlertBatch, s
 // incident opened).
 func (r *IncidentRepo) LoadCollectTarget(ctx context.Context, incidentID string) (core.CollectTarget, error) {
 	var (
+		title      string
 		entityJSON []byte
 		openedAt   time.Time
 		anchor     *time.Time
+		alertnames []string
 	)
 	err := r.pool.QueryRow(ctx, `
-		SELECT i.entity_bag, i.opened_at,
-		       (SELECT min(starts_at) FROM alerts a WHERE a.incident_id = i.id)
+		SELECT i.title, i.entity_bag, i.opened_at,
+		       (SELECT min(starts_at) FROM alerts a WHERE a.incident_id = i.id),
+		       (SELECT COALESCE(array_agg(DISTINCT a.labels->>'alertname')
+		               FILTER (WHERE a.labels->>'alertname' IS NOT NULL), '{}')
+		        FROM alerts a WHERE a.incident_id = i.id)
 		FROM incidents i
 		WHERE i.id = $1`,
 		incidentID,
-	).Scan(&entityJSON, &openedAt, &anchor)
+	).Scan(&title, &entityJSON, &openedAt, &anchor, &alertnames)
 	if err != nil {
 		return core.CollectTarget{}, fmt.Errorf("load collect target: %w", err)
 	}
@@ -83,6 +88,30 @@ func (r *IncidentRepo) LoadCollectTarget(ctx context.Context, incidentID string)
 		}
 	}
 
+	// Merge labels + annotations across the incident's alerts, so collectors can
+	// find references like Grafana's __dashboardUid__ / grafana_panel_url.
+	annotations := map[string]string{}
+	arows, err := r.pool.Query(ctx, `SELECT labels, annotations FROM alerts WHERE incident_id = $1`, incidentID)
+	if err != nil {
+		return core.CollectTarget{}, fmt.Errorf("load alert annotations: %w", err)
+	}
+	defer arows.Close()
+	for arows.Next() {
+		var labelsJSON, annJSON []byte
+		if err := arows.Scan(&labelsJSON, &annJSON); err != nil {
+			return core.CollectTarget{}, err
+		}
+		for k, v := range decodeStringMap(labelsJSON) {
+			annotations[k] = v
+		}
+		for k, v := range decodeStringMap(annJSON) {
+			annotations[k] = v
+		}
+	}
+	if err := arows.Err(); err != nil {
+		return core.CollectTarget{}, err
+	}
+
 	at := openedAt
 	if anchor != nil {
 		at = *anchor
@@ -92,8 +121,11 @@ func (r *IncidentRepo) LoadCollectTarget(ctx context.Context, incidentID string)
 		end = now
 	}
 	return core.CollectTarget{
-		IncidentID: incidentID,
-		EntityBag:  entityBag,
+		IncidentID:  incidentID,
+		Title:       title,
+		Alertnames:  alertnames,
+		EntityBag:   entityBag,
+		Annotations: annotations,
 		Window: core.TimeWindow{
 			Start: at.Add(-15 * time.Minute),
 			End:   end,

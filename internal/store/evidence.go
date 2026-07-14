@@ -46,12 +46,24 @@ func (r *EvidenceRepo) SaveEvidence(ctx context.Context, incidentID string, item
 			errText = it.Error
 		}
 
-		if _, err := tx.Exec(ctx, `
+		var evidenceID string
+		if err := tx.QueryRow(ctx, `
 			INSERT INTO evidence_items (incident_id, collector, kind, request, result, status, error)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			RETURNING id`,
 			incidentID, it.Collector, it.Kind, []byte(request), result, it.Status, errText,
-		); err != nil {
+		).Scan(&evidenceID); err != nil {
 			return fmt.Errorf("insert evidence (%s/%s): %w", it.Collector, it.Status, err)
+		}
+
+		if a := it.Attachment; a != nil {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO attachments (evidence_item_id, storage_backend, storage_key, mime_type, size_bytes, checksum)
+				VALUES ($1, $2, $3, $4, $5, $6)`,
+				evidenceID, a.StorageBackend, a.StorageKey, a.MimeType, a.SizeBytes, nullIfEmpty(a.Checksum),
+			); err != nil {
+				return fmt.Errorf("insert attachment: %w", err)
+			}
 		}
 	}
 	return tx.Commit(ctx)

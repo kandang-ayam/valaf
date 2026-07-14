@@ -111,6 +111,47 @@ func TestIncidentDetailRenders(t *testing.T) {
 	}
 }
 
+func TestEvidenceMetricSummaryRenders(t *testing.T) {
+	now := time.Now()
+	nb := &store.Notebook{
+		Incident: store.IncidentDetail{ID: "1", Title: "NodeDiskUsageHigh", Status: "open", Severity: "high", OpenedAt: now},
+		Evidence: []store.EvidenceView{
+			{
+				Ref: "E1", Collector: "prometheus", Kind: "metric", Status: "ok",
+				Query:   `100 - (node_filesystem_avail_bytes{instance="ipdn"} / node_filesystem_size_bytes{instance="ipdn"} * 100)`,
+				Metrics: []store.MetricSeries{{Label: `mountpoint="/"`, Min: 68.9, Avg: 74.1, Max: 76.4, First: 68.9, Last: 76.4, Trend: []float64{68.9, 71, 74, 76.4}}},
+				Request: "{}", Result: `{"series":[]}`, IsValid: true, CapturedAt: now,
+			},
+		},
+	}
+	out := renderTemplate(t, "incident_detail", detailData{baseData: baseData{Title: "NodeDiskUsageHigh"}, Notebook: nb})
+	for _, want := range []string{`mountpoint=&#34;/&#34;`, "76.4", "node_filesystem_avail_bytes", "<svg", "metric-table", "raw request"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("metric summary render missing %q", want)
+		}
+	}
+}
+
+func TestEvidenceSnapshotRenders(t *testing.T) {
+	now := time.Now()
+	nb := &store.Notebook{
+		Incident: store.IncidentDetail{ID: "1", Title: "NodeDiskUsageHigh", Status: "open", Severity: "high", OpenedAt: now},
+		Evidence: []store.EvidenceView{
+			{
+				Ref: "E1", Collector: "grafana", Kind: "dashboard", Status: "ok",
+				ImageID: "att-123", ViewURL: "https://monitoring.example/d/uid?viewPanel=9",
+				Request: "{}", Result: "{}", IsValid: true, CapturedAt: now,
+			},
+		},
+	}
+	out := renderTemplate(t, "incident_detail", detailData{baseData: baseData{Title: "NodeDiskUsageHigh"}, Notebook: nb})
+	for _, want := range []string{`src="/attachments/att-123"`, "Open in Grafana", "monitoring.example"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("snapshot render missing %q", want)
+		}
+	}
+}
+
 func TestIncidentListRenders(t *testing.T) {
 	data := listData{
 		baseData: baseData{Title: "Incidents"},
