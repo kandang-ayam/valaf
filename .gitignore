@@ -12,6 +12,9 @@ valaf.yaml
 .env.*
 !.env.example
 
+# Local compose override (machine-specific networks/ports)
+docker-compose.override.yml
+
 # Test & coverage artifacts
 *.test
 *.out

@@ -78,7 +78,15 @@ route:
       continue: true          # valaf observes; your paging route still fires
 ```
 
-The path segment (`prod-alertmanager`) is the source **name** you registered; rotate its token any time by re-running `valaf intake-token` with the same name. Alerts below high severity are dropped at the door (no notebook, no AI cost). Alertmanager's own grouping is respected: one webhook group = one incident, and repeats/storms attach to the existing incident instead of creating new ones.
+The path segment (`prod-alertmanager`) is the source **name** you registered; rotate its token any time by re-running `valaf intake-token` with the same name.
+
+**If Alertmanager runs in a different compose stack**, `web:8080` won't resolve across Docker networks (`lookup web … server misbehaving`). Join valaf to the obs stack's network with the provided override — it survives rebuilds, unlike a manual `docker network connect`:
+
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml
+# set the network name inside (or OBS_NETWORK in .env), then:
+docker compose up -d
+``` Alerts below high severity are dropped at the door (no notebook, no AI cost). Alertmanager's own grouping is respected: one webhook group = one incident, and repeats/storms attach to the existing incident instead of creating new ones.
 
 ### Prometheus (evidence)
 

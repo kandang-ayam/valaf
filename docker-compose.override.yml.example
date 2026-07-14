@@ -1,0 +1,27 @@
+# Optional: join valaf to an existing observability stack's Docker network so
+# Alertmanager can reach valaf as `web:8080` and the worker can reach
+# `prometheus:9090` / Grafana by service name.
+#
+#   1. Find the network your obs stack uses:
+#        docker inspect <alertmanager-container> \
+#          --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}'
+#   2. Put its name below (or set OBS_NETWORK in .env).
+#   3. Copy this file to docker-compose.override.yml (auto-merged by compose):
+#        cp docker-compose.override.yml.example docker-compose.override.yml
+#        docker compose up -d
+#
+# `default` must stay listed — it is how web/worker reach postgres.
+services:
+  web:
+    networks:
+      - default
+      - observability
+  worker:
+    networks:
+      - default
+      - observability
+
+networks:
+  observability:
+    external: true
+    name: ${OBS_NETWORK:-observability-net}
