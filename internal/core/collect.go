@@ -61,6 +61,12 @@ type Collector interface {
 	Collect(ctx context.Context, target CollectTarget) []EvidenceItem
 }
 
+// TimeoutHinter lets a collector ask for a longer time-box than the default
+// (e.g. Grafana panel rendering, where a cold image-renderer can take >20s).
+type TimeoutHinter interface {
+	TimeoutHint() time.Duration
+}
+
 // EvidenceRepository persists captured evidence (implemented by the store).
 type EvidenceRepository interface {
 	SaveEvidence(ctx context.Context, incidentID string, items []EvidenceItem) error
@@ -94,7 +100,11 @@ func NewCollectionService(evidence EvidenceRepository, collectors []Collector, o
 func (s *CollectionService) Collect(ctx context.Context, target CollectTarget) (int, error) {
 	var items []EvidenceItem
 	for _, c := range s.collectors {
-		cctx, cancel := context.WithTimeout(ctx, s.perTimeout)
+		timeout := s.perTimeout
+		if h, ok := c.(TimeoutHinter); ok && h.TimeoutHint() > timeout {
+			timeout = h.TimeoutHint()
+		}
+		cctx, cancel := context.WithTimeout(ctx, timeout)
 		items = append(items, c.Collect(cctx, target)...)
 		cancel()
 	}

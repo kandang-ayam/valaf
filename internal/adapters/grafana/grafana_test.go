@@ -32,6 +32,40 @@ func TestResolvePanel(t *testing.T) {
 	}
 }
 
+func TestParsePanelURL_Grafana11(t *testing.T) {
+	// Grafana 11 URL: panel- prefix on viewPanel, template variables present.
+	raw := "https://monitoring.example/d/rYdddlPWk/node-exporter-full?from=now-24h&to=now" +
+		"&var-ds_prometheus=prometheus&var-job=connectowl%2Fnode-exporter&var-nodename=ipdn&var-node=ipdn" +
+		"&refresh=1m&viewPanel=panel-152"
+	ref, ok := parsePanelURL(raw)
+	if !ok {
+		t.Fatal("should parse")
+	}
+	if ref.PanelID != "152" {
+		t.Errorf("panel- prefix not stripped: %q", ref.PanelID)
+	}
+	if ref.DashboardUID != "rYdddlPWk" {
+		t.Errorf("uid = %q", ref.DashboardUID)
+	}
+	for k, want := range map[string]string{"var-nodename": "ipdn", "var-node": "ipdn", "var-job": "connectowl/node-exporter"} {
+		if got := ref.Vars.Get(k); got != want {
+			t.Errorf("%s = %q, want %q", k, got, want)
+		}
+	}
+	if ref.Vars.Get("refresh") != "" || len(ref.Vars["from"]) != 0 {
+		t.Error("non var-* params must not leak into Vars")
+	}
+}
+
+func TestTimeoutHint(t *testing.T) {
+	store, _ := blob.New(blob.Config{LocalDir: t.TempDir()})
+	c := New("http://g", "t", store)
+	var _ core.TimeoutHinter = c
+	if c.TimeoutHint() < 60*time.Second {
+		t.Errorf("render timeout hint too small: %v", c.TimeoutHint())
+	}
+}
+
 func target(ann map[string]string) core.CollectTarget {
 	return core.CollectTarget{
 		IncidentID:  "inc-1",
@@ -49,10 +83,11 @@ func TestCollect_NoRefGap(t *testing.T) {
 }
 
 func TestCollect_RendersAndStores(t *testing.T) {
-	var gotAuth, gotPath string
+	var gotAuth, gotPath, gotQuery string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		gotPath = r.URL.Path
+		gotQuery = r.URL.RawQuery
 		w.Header().Set("Content-Type", "image/png")
 		io.WriteString(w, "PNGDATA")
 	}))
@@ -60,7 +95,7 @@ func TestCollect_RendersAndStores(t *testing.T) {
 
 	bs, _ := blob.New(blob.Config{LocalDir: t.TempDir()})
 	items := New(srv.URL, "sekret", bs).Collect(context.Background(),
-		target(map[string]string{"__dashboardUid__": "abc", "__panelId__": "12"}))
+		target(map[string]string{"grafana_panel_url": "https://g.example/d/abc/x?viewPanel=panel-12&var-node=ipdn"}))
 
 	if len(items) != 1 {
 		t.Fatalf("want 1 item, got %d", len(items))
@@ -84,8 +119,17 @@ func TestCollect_RendersAndStores(t *testing.T) {
 	if !strings.Contains(gotPath, "/render/d-solo/abc/") {
 		t.Errorf("render path = %q", gotPath)
 	}
+	if !strings.Contains(gotQuery, "panelId=12") || strings.Contains(gotQuery, "panel-") {
+		t.Errorf("panel- prefix should be stripped for the render API: %q", gotQuery)
+	}
+	if !strings.Contains(gotQuery, "var-node=ipdn") {
+		t.Errorf("template variables must pass through to the render: %q", gotQuery)
+	}
 	if !strings.Contains(string(it.Result), "view_url") {
 		t.Errorf("result should carry a Grafana view_url: %s", it.Result)
+	}
+	if !strings.Contains(string(it.Result), "var-node=ipdn") {
+		t.Errorf("view_url should carry the template variables too: %s", it.Result)
 	}
 	// The PNG must actually be in the blob store.
 	rc, err := bs.Open(context.Background(), it.Attachment.StorageKey)

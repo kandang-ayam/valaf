@@ -29,16 +29,23 @@ type Collector struct {
 	http    *http.Client
 }
 
+// renderTimeout bounds one panel render. A cold image-renderer (Chromium
+// startup + dashboard load) can take well over the default collector time-box.
+const renderTimeout = 60 * time.Second
+
 func New(baseURL, token string, store blob.Store) *Collector {
 	return &Collector{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   token,
 		blob:    store,
-		http:    &http.Client{Timeout: 25 * time.Second}, // rendering can be slow
+		http:    &http.Client{Timeout: renderTimeout},
 	}
 }
 
 func (c *Collector) Kind() string { return "grafana" }
+
+// TimeoutHint asks the collection service for a render-sized time-box.
+func (c *Collector) TimeoutHint() time.Duration { return renderTimeout }
 
 func (c *Collector) Collect(ctx context.Context, target core.CollectTarget) []core.EvidenceItem {
 	ref, ok := resolvePanel(target.Annotations)
@@ -57,6 +64,7 @@ type panelRef struct {
 	DashboardUID string
 	PanelID      string
 	OrgID        string
+	Vars         url.Values // dashboard template variables (var-*), passed through
 }
 
 func (c *Collector) renderPanel(ctx context.Context, ref panelRef, target core.CollectTarget) core.EvidenceItem {
@@ -74,8 +82,22 @@ func (c *Collector) renderPanel(ctx context.Context, ref panelRef, target core.C
 	if ref.OrgID != "" {
 		q.Set("orgId", ref.OrgID)
 	}
+	// Dashboard template variables (var-node=ipdn, …) scope the panel to the
+	// alerting entity; without them Grafana renders the dashboard's defaults.
+	for k, vals := range ref.Vars {
+		for _, v := range vals {
+			q.Add(k, v)
+		}
+	}
 	renderURL := fmt.Sprintf("%s/render/d-solo/%s/_?%s", c.baseURL, url.PathEscape(ref.DashboardUID), q.Encode())
-	viewURL := fmt.Sprintf("%s/d/%s?viewPanel=%s&from=%s&to=%s", c.baseURL, url.PathEscape(ref.DashboardUID), ref.PanelID, fromMS, toMS)
+
+	vq := url.Values{"viewPanel": {ref.PanelID}, "from": {fromMS}, "to": {toMS}}
+	for k, vals := range ref.Vars {
+		for _, v := range vals {
+			vq.Add(k, v)
+		}
+	}
+	viewURL := fmt.Sprintf("%s/d/%s?%s", c.baseURL, url.PathEscape(ref.DashboardUID), vq.Encode())
 
 	request := mustJSON(map[string]any{
 		"collector":     "grafana",
@@ -180,10 +202,23 @@ func parsePanelURL(raw string) (panelRef, bool) {
 	if pid == "" {
 		pid = u.Query().Get("panelId")
 	}
+	// Grafana 11+ writes viewPanel=panel-152; the render API wants the bare id.
+	pid = strings.TrimPrefix(pid, "panel-")
 	if uid == "" || pid == "" {
 		return panelRef{}, false
 	}
-	return panelRef{DashboardUID: uid, PanelID: pid, OrgID: u.Query().Get("orgId")}, true
+
+	// Keep the dashboard template variables so the render targets the same
+	// entity the alert is about (var-node=ipdn, var-job=…, …).
+	vars := url.Values{}
+	for k, vals := range u.Query() {
+		if strings.HasPrefix(k, "var-") {
+			for _, v := range vals {
+				vars.Add(k, v)
+			}
+		}
+	}
+	return panelRef{DashboardUID: uid, PanelID: pid, OrgID: u.Query().Get("orgId"), Vars: vars}, true
 }
 
 func firstNonEmpty(m map[string]string, keys ...string) string {
